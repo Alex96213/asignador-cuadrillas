@@ -1,120 +1,104 @@
-import os
-import sys
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 import csv
-from flask import Flask, render_template, request, redirect, send_file, flash, session, url_for
+import os
 from datetime import datetime
-
-# Agrega la ruta para importar la función procesar_excel
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from asignador.logic.assign import procesar_excel
 
 app = Flask(__name__)
-app.secret_key = 'clave_segura'  # Requerido para sesiones y flash
+app.secret_key = 'clave_secreta_segura'
 
-USUARIOS_CSV = os.path.join('ordenes', 'usuarios.csv')
+# Rutas y carpetas
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'ordenes')
+HISTORIAL_CSV = os.path.join(UPLOAD_FOLDER, 'historial.csv')
+USUARIOS_CSV = os.path.join(UPLOAD_FOLDER, 'usuarios.csv')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Ruta principal (redirige a login si no ha iniciado sesión)
-@app.route('/')
+# Ruta de inicio
+@app.route("/")
 def index():
-    if 'usuario' in session:
-        return redirect('/upload')
-    return redirect('/login')
+    return render_template("index.html")
 
-# Página de login
-@app.route('/login', methods=['GET', 'POST'])
+# Ruta de login
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        usuario = request.form.get('usuario')
-        clave = request.form.get('clave')
+    if request.method == "POST":
+        usuario = request.form["usuario"]
+        contraseña = request.form["contraseña"]
 
-        if not usuario or not clave:
-            flash("Por favor completa todos los campos.")
-            return redirect('/login')
-
-        # Verificar si el usuario existe en el archivo CSV
         try:
             with open(USUARIOS_CSV, newline='') as f:
-                lector = csv.DictReader(f)
+                lector = csv.reader(f)
                 for fila in lector:
-                    if fila['usuario'] == usuario and fila['clave'] == clave:
-                        session['usuario'] = usuario
-                        return redirect('/upload')
-            flash("Usuario o clave incorrecta.")
+                    if fila[0] == usuario and fila[1] == contraseña:
+                        return redirect(url_for("upload"))
         except FileNotFoundError:
-            flash("No hay usuarios registrados aún.")
-    return render_template('login.html')
+            flash("Archivo de usuarios no encontrado.")
+            return redirect(url_for("login"))
 
-# Página de registro
-@app.route('/register', methods=['GET', 'POST'])
+        flash("Usuario o contraseña incorrectos.")
+    return render_template("login.html")
+
+# Ruta de registro de usuario
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        usuario = request.form.get('usuario')
-        clave = request.form.get('clave')
+    if request.method == "POST":
+        usuario = request.form["usuario"]
+        contraseña = request.form["contraseña"]
 
-        if not usuario or not clave:
-            flash("Por favor completa todos los campos.")
-            return redirect('/register')
-
-        # Crear archivo si no existe
-        if not os.path.exists(USUARIOS_CSV):
-            with open(USUARIOS_CSV, 'w', newline='') as f:
-                escritor = csv.writer(f)
-                escritor.writerow(['usuario', 'clave'])
-
-        # Verificar si el usuario ya existe
-        with open(USUARIOS_CSV, newline='') as f:
-            lector = csv.DictReader(f)
-            for fila in lector:
-                if fila['usuario'] == usuario:
-                    flash("El usuario ya existe.")
-                    return redirect('/register')
-
-        # Guardar nuevo usuario
         with open(USUARIOS_CSV, 'a', newline='') as f:
-            escritor = csv.writer(f)
-            escritor.writerow([usuario, clave])
+            writer = csv.writer(f)
+            writer.writerow([usuario, contraseña])
 
-        flash("Usuario registrado con éxito. Inicia sesión.")
-        return redirect('/login')
+        flash("Usuario registrado con éxito.")
+        return redirect(url_for("login"))
 
-    return render_template('register.html')
+    return render_template("register.html")
 
-# Cerrar sesión
-@app.route('/logout')
-def logout():
-    session.pop('usuario', None)
-    flash("Sesión cerrada correctamente.")
-    return redirect('/login')
+# Subida de archivo Excel
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    if request.method == "POST":
+        archivo = request.files["archivo"]
+        if archivo.filename.endswith(".xlsx") or archivo.filename.endswith(".xls"):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo = f"agenda_{timestamp}.xlsx"
+            ruta_guardado = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo)
+            archivo.save(ruta_guardado)
 
-# Página de subida de archivo (solo si ha iniciado sesión)
-@app.route('/upload')
-def upload_file():
-    if 'usuario' not in session:
-        flash("Debes iniciar sesión.")
-        return redirect('/login')
-    return render_template('upload.html')
+            ruta_resultado = procesar_excel(ruta_guardado)
 
-# Procesar archivo subido
-@app.route('/procesar', methods=['POST'])
-def procesar():
-    if 'usuario' not in session:
-        flash("Debes iniciar sesión.")
-        return redirect('/login')
+            with open(HISTORIAL_CSV, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([nombre_archivo, ruta_resultado])
 
-    archivo = request.files.get('archivo')
-    if archivo:
-        nombre_archivo = archivo.filename
-        ruta_guardado = os.path.join('ordenes', nombre_archivo)
-        archivo.save(ruta_guardado)
+            return redirect(url_for("success", archivo=os.path.basename(ruta_resultado)))
+        else:
+            flash("El archivo debe tener extensión .xls o .xlsx")
 
-        # Procesar con la función personalizada
-        archivo_salida = procesar_excel(ruta_guardado)
+    return render_template("upload.html")
 
-        return send_file(archivo_salida, as_attachment=True, download_name="archivo_asignado.xlsx")
+# Página de éxito tras asignación
+@app.route("/success")
+def success():
+    archivo = request.args.get("archivo")
+    return render_template("success.html", archivo=archivo)
 
-    flash("No se subió ningún archivo.")
-    return redirect('/upload')
+# Descargar archivo procesado
+@app.route("/descargar/<archivo>")
+def descargar(archivo):
+    ruta = os.path.join(app.config['UPLOAD_FOLDER'], archivo)
+    return send_file(ruta, as_attachment=True)
 
+# Historial de archivos procesados
+@app.route("/historial")
+def historial():
+    archivos = []
+    if os.path.exists(HISTORIAL_CSV):
+        with open(HISTORIAL_CSV, newline='') as f:
+            lector = csv.reader(f)
+            archivos = list(lector)
+    return render_template("historial.html", archivos=archivos)
 
-if __name__ == '__main__':
+# Iniciar la app localmente
+if __name__ == "__main__":
     app.run(debug=True)
