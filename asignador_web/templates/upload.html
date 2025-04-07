@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Subir Archivo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            padding: 40px;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+        }
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 10px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0f78d4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Subir archivo de órdenes</h2>
+        <form action="/procesar" method="POST" enctype="multipart/form-data">
+            <input type="file" name="archivo" required>
+            <button type="submit">Procesar archivo</button>
+        </form>
+    </div>
+</body>
+</html>

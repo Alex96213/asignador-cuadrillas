@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Archivos</title>
+</head>
+<body>
+    <h1>Historial de Archivos Procesados</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Archivo Original</th>
+                <th>Archivo Procesado</th>
+                <th>Descargar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fecha, original, procesado in registros %}
+            <tr>
+                <td>{{ fecha }}</td>
+                <td>{{ original }}</td>
+                <td>{{ procesado }}</td>
+                <td><a href="{{ url_for('descargar_historial', filename=procesado) }}">Descargar</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    <a href="/">Volver a inicio</a>
+</body>
+</html>

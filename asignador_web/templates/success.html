@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Asignación Exitosa</title>
+</head>
+<body>
+    <h1>✅ Archivo asignado exitosamente</h1>
+    <a href="{{ url_for('download_file', filename=filename) }}">📥 Descargar archivo asignado</a>
+    <br><br>
+    <a href="{{ url_for('index') }}">🔁 Subir otro archivo</a>
+</body>
+</html>
